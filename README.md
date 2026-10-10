@@ -4,6 +4,11 @@ A Next.js application implementing the three phases in the [Skinstric technical 
 
 Results are sorted by confidence and displayed as percentages with two decimal places. Selecting an actual attribute updates the corresponding category card and confidence display without changing the API scores. Selections can be reset.
 
+## Submission links
+
+- Live application: [https://skinstric-internship-two.vercel.app](https://skinstric-internship-two.vercel.app)
+- Repository: [https://github.com/YourFriendlyNeighborhoodDeveloper/skinstric-internship](https://github.com/YourFriendlyNeighborhoodDeveloper/skinstric-internship)
+
 ## Stack
 
 JavaScript, React 19, Next.js 16 App Router, Tailwind CSS 4, Lucide icons, and native Canvas and MediaDevices APIs. Playwright provides browser tests; Node's test runner verifies validation and result contracts.
@@ -60,7 +65,11 @@ This sends test profile data and images to the external service. Physical camera
 
 ## Deployment
 
+The production application is deployed to Vercel, with the GitHub repository connected and `main` as the production branch. The public URL above is accessible without Vercel authentication.
+
 Import the repository into Vercel, choose Next.js, use `npm ci` for installation and `npm run build` for the build, and deploy over HTTPS. No secrets are needed. For a Node.js host, run `npm run build` followed by `npm start`.
+
+Final submission validation passed: lint, the local and Vercel production builds, five contract tests, and 46 browser tests against both the local production build and the public deployment. Two WebKit native fake-camera tests were explicitly skipped. Both real-API tests passed locally and on the public deployment, covering upload and simulated selfie flows; `skinstricPhaseOne` and `skinstricPhaseTwo` returned HTTP 200 in each deployed flow. Physical-camera and Figma checks remain unverified as listed below.
 
 The production dependency audit reports no vulnerabilities. The development lint dependency chain contains an unresolved `braces` advisory ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)); the registry currently has no patched release. Do not use an automatic forced downgrade of Next.js to address it.
 
