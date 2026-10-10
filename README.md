@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Skinstric
 
-## Getting Started
+A Next.js application implementing the three phases in the [Skinstric technical specification](https://drive.google.com/file/d/1M91c7SEBn1XphnbRW30t3702e6k_H5tc/view): submit a name and location, upload a photo or take a selfie, and review simulated demographic results.
 
-First, run the development server:
+Results are sorted by confidence and displayed as percentages with two decimal places. Selecting an actual attribute updates the corresponding category card and confidence display without changing the API scores. Selections can be reset.
 
-```bash
+## Stack
+
+JavaScript, React 19, Next.js 16 App Router, Tailwind CSS 4, Lucide icons, and native Canvas and MediaDevices APIs. Playwright provides browser tests; Node's test runner verifies validation and result contracts.
+
+## Run locally
+
+Use Node.js 20.9 or newer.
+
+```sh
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. No API key or environment variables are required.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## API integration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Requests are sent directly from the browser to `https://us-central1-frontend-simplified.cloudfunctions.net`:
 
-## Learn More
+- `POST /skinstricPhaseOne` sends `{ "name": "John Doe", "location": "New York" }`.
+- `POST /skinstricPhaseTwo` sends `{ "image": "raw_base64_string" }` for both uploads and selfies.
 
-To learn more about Next.js, take a look at the following resources:
+The live service requires lowercase `image`. The PDF's uppercase `Image` field returns `{ "success": false, "message": "Image is required." }`. The integration uses the verified live contract. Successful responses contain `success: true`; image responses also contain `data.race`, `data.age`, and `data.gender`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Validation accepts Unicode letters, combining marks, spaces, and common punctuation, including mononyms and accented locations. Empty values, numeric characters, control characters, unsupported symbols, and values over 100 characters are rejected. The specification excludes numbers from both fields.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Uploads accept JPEG, PNG, and WebP up to 10 MB. Photos are decoded and converted to JPEG, with their longest edge limited to 1600 pixels. Canvas conversion removes the original file metadata. Requests time out after 30 seconds and are canceled when the requesting screen is left. Failed requests remain recoverable without creating results.
 
-## Deploy on Vercel
+The browser keeps profile details, scores, and selections only in memory. Refreshing starts a new session. Photos are cleared after successful analysis or leaving their screen; they are not stored in localStorage, sessionStorage, or a database. Camera tracks stop after capture, when navigating away, and when the page is hidden. Late camera permission results are released. Camera access requires HTTPS or localhost.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The API returns randomized demo predictions. These are not verified medical or biometric measurements. Photos are sent to the external service only when the user chooses “Use this photo”; this project does not control the service's retention policy.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tests
+
+```sh
+npx playwright install chromium webkit
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+```
+
+Browser tests run against the production build on port 3100. They cover navigation, field validation, request payloads, retry and error states, image decoding and resizing, selfie capture and cleanup, score sorting and formatting, attribute selection, session recovery, and layouts at 320, 768, and 1440 pixels. API mocks exist only in the tests.
+
+Chromium's native fake camera verifies capture and stream cleanup on desktop and mobile emulation. WebKit covers upload, navigation, errors, results, and responsive layouts; its two native fake-camera cases are explicitly skipped.
+
+To exercise the real APIs with generated images and a fake camera, run:
+
+```sh
+npm run test:live
+```
+
+This sends test profile data and images to the external service. Physical cameras and actual mobile devices still require manual verification.
+
+## Deployment
+
+Import the repository into Vercel, choose Next.js, use `npm ci` for installation and `npm run build` for the build, and deploy over HTTPS. No secrets are needed. For a Node.js host, run `npm run build` followed by `npm start`.
+
+The production dependency audit reports no vulnerabilities. The development lint dependency chain contains an unresolved `braces` advisory ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)); the registry currently has no patched release. Do not use an automatic forced downgrade of Next.js to address it.
+
+## Visual verification
+
+Styling is provisional, based on the [public interface provided for reference](https://skintric.vercel.app). The official Figma file was not supplied. Exact typography, dimensions, spacing, animation, hover behavior, and design breakpoints remain pending comparison with that file. The project has not been published to Vercel during this implementation.

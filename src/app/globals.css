@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
+  background: #fcfcfc;
+  color: #1a1b1c;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #fcfcfc;
+}
+
+button:not(:disabled), a, label[for] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+:focus-visible {
+  outline: 2px solid #1a1b1c;
+  outline-offset: 6px;
+}
+
+::selection {
+  background: #1a1b1c;
+  color: #fff;
+}
+
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 50;
+  background: #fff;
+  padding: 12px;
+}
+
+.skip-link:focus {
+  top: 16px;
+}
+
+.home-diamond {
+  position: absolute;
+  top: 50%;
+  width: min(55vw, 720px);
+  aspect-ratio: 1;
+  border: 1px dashed #c9c9c9;
+  transform: translateY(-60%) rotate(45deg);
+  pointer-events: none;
+}
+
+.home-diamond-left { left: -39vw; }
+.home-diamond-right { right: -39vw; }
+
+.diamond-orbit {
+  position: absolute;
+  inset: 5%;
+  border: 1px dashed #d3d3d3;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.diamond-orbit:nth-child(2) { inset: 0; opacity: 0.65; }
+.diamond-orbit:nth-child(3) { inset: -5%; opacity: 0.35; }
+
+.confidence-ring {
+  background: conic-gradient(#1a1b1c var(--confidence), #d9dbdc 0);
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  main:has(a[href="/test"]:hover) .home-title { transform: translateX(-10%); }
+  .home-title { transition: transform 600ms ease; }
+  .diamond-orbit { animation: orbit 80s linear infinite; }
+  @keyframes orbit { to { transform: rotate(405deg); } }
 }

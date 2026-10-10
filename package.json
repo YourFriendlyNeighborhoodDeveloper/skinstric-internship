@@ -2,18 +2,25 @@
   "name": "skinstric-internship",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test tests/contracts.test.js",
+    "test:e2e": "playwright test",
+    "test:live": "SKINSTRIC_LIVE_API=1 playwright test --project=chromium"
   },
   "dependencies": {
+    "lucide-react": "^1.55.0",
+    "motion": "^14.1.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/turbopack": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
