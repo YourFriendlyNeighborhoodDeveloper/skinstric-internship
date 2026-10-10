@@ -66,4 +66,12 @@ The production dependency audit reports no vulnerabilities. The development lint
 
 ## Visual verification
 
-Styling is provisional, based on the [public interface provided for reference](https://skintric.vercel.app). The official Figma file was not supplied. Exact typography, dimensions, spacing, animation, hover behavior, and design breakpoints remain pending comparison with that file. The project has not been published to Vercel during this implementation.
+Styling is provisional, based on the [public interface provided for reference](https://skintric.vercel.app). The official Figma file was not supplied. Exact typography, dimensions, spacing, animation, hover behavior, and design breakpoints remain pending comparison with that file.
+
+The following manual checks remain unverified:
+
+- On a physical desktop camera and actual iOS/Android devices, verify camera permission allow/deny and retry, front-camera preview, capture, retake, submission, and upload fallback.
+- Confirm the physical camera indicator turns off after capture, navigation, and backgrounding the page, including returning from a delayed permission prompt.
+- Compare desktop and mobile screens with the official Figma file, including fonts, spacing, dimensions, breakpoints, hover states, and motion.
+
+Automated fake-camera and responsive browser tests do not establish that these physical-device or Figma checks passed.
