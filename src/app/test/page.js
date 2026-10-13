@@ -53,6 +53,7 @@ export default function ProfilePage() {
       <div className="flex flex-1 items-center justify-center py-20">
         <form noValidate onSubmit={proceed} aria-busy={pending} className="relative flex min-h-72 w-full max-w-[420px] flex-col items-center justify-center">
           <Orbit />
+          <h2 className="relative mb-6 text-center text-3xl tracking-tight">Let’s start with you</h2>
           <p className="relative mb-5 text-[10px] uppercase text-neutral-500">{step === "name" ? "Click to type" : "One more detail"}</p>
           <label htmlFor={step} className="sr-only">{step === "name" ? "Your name" : "Your location"}</label>
           <input

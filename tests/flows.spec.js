@@ -61,7 +61,13 @@ async function trackCamera(page, delay = 0) {
 test("landing navigation and both field validations preserve back-navigation values", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Sophisticated skincare" })).toBeVisible();
-  await page.getByRole("link", { name: "Take test", exact: true }).first().click();
+  await page.getByRole("main").getByRole("link", { name: "Take The Test", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Let’s start with you" })).toBeVisible();
+  await page.getByRole("link", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { name: "Sophisticated skincare" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Let’s start with you" })).toHaveCount(0);
+  await page.getByRole("main").getByRole("link", { name: "Take The Test", exact: true }).click();
   await page.getByRole("button", { name: "Proceed", exact: true }).click();
   await expect(page.getByRole("main").getByRole("alert")).toHaveText("Enter your name.");
   for (const invalid of ["Jane123", "@@@", "   "]) {
@@ -82,6 +88,70 @@ test("landing navigation and both field validations preserve back-navigation val
   await page.getByLabel("Your location", { exact: true }).fill("東京都");
   await page.getByRole("button", { name: "Proceed", exact: true }).click();
   await expect(page).toHaveURL(/\/test\/image$/);
+});
+
+test("landing diamonds fade in opposition and browser Back restores the centered headline", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const heading = page.getByRole("heading", { name: "Sophisticated skincare" });
+  const discover = page.getByRole("main").getByRole("link", { name: "Discover A.I.", exact: true });
+  const takeTest = page.getByRole("main").getByRole("link", { name: "Take The Test", exact: true });
+  const center = () => heading.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return box.left + box.width / 2;
+  });
+  await expect.poll(center).toBeCloseTo(720, 0);
+  await discover.hover();
+  await expect(takeTest).toHaveCSS("opacity", "0");
+  await expect(page.locator(".home-diamond-right")).toHaveCSS("opacity", "0");
+  await expect.poll(center).toBeGreaterThan(730);
+  await page.mouse.move(0, 0);
+  await expect(takeTest).toHaveCSS("opacity", "1");
+  await expect.poll(center).toBeCloseTo(720, 0);
+  await takeTest.hover();
+  await expect(discover).toHaveCSS("opacity", "0");
+  await expect(page.locator(".home-diamond-left")).toHaveCSS("opacity", "0");
+  await expect.poll(center).toBeLessThan(710);
+  await takeTest.click();
+  await expect(page.getByRole("heading", { name: "Let’s start with you" })).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.goBack();
+  await expect(page).toHaveURL("/");
+  await expect(heading).toBeVisible();
+  await expect.poll(center).toBeCloseTo(720, 0);
+  await expect(page.getByRole("heading", { name: "Let’s start with you" })).toHaveCount(0);
+  await discover.click();
+  await expect(page).toHaveURL(/\/#about$/);
+  await expect(page.locator("#about")).toBeInViewport();
+});
+
+test("analysis shows four diamond tiles with only Demographics available", async ({ page }) => {
+  await enterProfile(page);
+  await uploadPhoto(page);
+  await page.getByRole("button", { name: "Use this photo" }).click();
+  await expect(page).toHaveURL(/\/test\/analysis$/);
+  const categories = page.getByRole("navigation", { name: "Analysis categories" });
+  const demographicTile = categories.getByRole("link", { name: "Demographics", exact: true });
+  await expect(categories.getByRole("link")).toHaveCount(1);
+  await expect(demographicTile).toBeVisible();
+  for (const name of ["Cosmetic Concerns", "Skin Type Details", "Weather"]) {
+    const tile = categories.getByRole("button", { name: `${name} (unavailable)`, exact: true });
+    await expect(tile).toBeVisible();
+    await expect(tile).toBeDisabled();
+  }
+  const top = await demographicTile.boundingBox();
+  const right = await categories.getByRole("button", { name: "Cosmetic Concerns (unavailable)", exact: true }).boundingBox();
+  const left = await categories.getByRole("button", { name: "Skin Type Details (unavailable)", exact: true }).boundingBox();
+  const bottom = await categories.getByRole("button", { name: "Weather (unavailable)", exact: true }).boundingBox();
+  expect(top.y).toBeLessThan(left.y);
+  expect(top.y).toBeLessThan(right.y);
+  expect(bottom.y).toBeGreaterThan(left.y);
+  expect(bottom.y).toBeGreaterThan(right.y);
+  expect(left.x).toBeLessThan(top.x);
+  expect(right.x).toBeGreaterThan(top.x);
+  await demographicTile.click();
+  await expect(page).toHaveURL(/\/test\/results$/);
+  await expect(page.getByRole("heading", { name: "Demographics", exact: true })).toBeVisible();
 });
 
 test("Phase One posts trimmed Unicode values and sends one request", async ({ page }) => {
@@ -321,6 +391,8 @@ test("landing, form, photo options, and result categories fit the viewport", asy
     await uploadPhoto(page);
     await expectNoOverflow();
     await page.getByRole("button", { name: "Use this photo" }).click();
+    await expect(page.getByRole("navigation", { name: "Analysis categories" })).toBeVisible();
+    await expectNoOverflow();
     await page.getByRole("link", { name: "Get summary" }).click();
     await expectNoOverflow();
     await page.getByRole("navigation", { name: "Demographic categories" }).getByRole("button", { name: "30-39 Age" }).click();
