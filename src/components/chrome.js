@@ -24,6 +24,14 @@ export function BackLink({ href, children = "Back" }) {
   return <Link href={href} className="group inline-flex min-h-11 items-center gap-5 text-xs uppercase"><DiamondArrow back />{children}</Link>;
 }
 
+export function DiamondLayers() {
+  return (
+    <span aria-hidden="true" className="diamond-layers">
+      <span /><span /><span />
+    </span>
+  );
+}
+
 export function Orbit() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden lg:overflow-visible">

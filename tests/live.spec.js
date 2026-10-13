@@ -31,9 +31,9 @@ for (const source of ["upload", "selfie"]) {
 
     await page.getByRole("button", { name: "Use this photo" }).click();
     await expect(page).toHaveURL(/\/test\/analysis$/, { timeout: 35000 });
-    await page.getByRole("link", { name: "Get summary" }).click();
+    await page.getByRole("navigation", { name: "Analysis categories" }).getByRole("link", { name: "Demographics", exact: true }).click();
     for (const category of ["race", "age", "gender"]) {
-      const card = page.getByRole("navigation", { name: "Demographic categories" })
+      const card = page.getByRole("navigation", { name: "Demographics categories" })
         .getByRole("button").filter({ has: page.getByText(category, { exact: true }) });
       await card.click();
       const rows = page.getByRole("radiogroup", { name: `Select your ${category}` }).locator("label");

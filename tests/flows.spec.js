@@ -7,6 +7,11 @@ const demographics = {
 };
 
 const cors = { "access-control-allow-origin": "*" };
+const estimateModules = {
+  "Cosmetic Concerns": { path: "concerns", categories: { concern: 7, severity: 3, area: 5 } },
+  "Skin Type Details": { path: "skin-type", categories: { "skin type": 5, hydration: 3, sensitivity: 3 } },
+  Weather: { path: "weather", categories: { conditions: 5, temperature: 5, humidity: 3 } },
+};
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/skinstricPhaseOne", (route) => route.fulfill({ headers: cors, json: { success: true, message: "Added to the list successfully!" } }));
@@ -36,13 +41,24 @@ async function uploadPhoto(page, dimensions = { width: 96, height: 128 }) {
   await expect(page.getByRole("heading", { name: "Review your photo" })).toBeVisible();
 }
 
-async function openResults(page) {
+async function openAnalysis(page) {
   await enterProfile(page);
   await uploadPhoto(page);
   await page.getByRole("button", { name: "Use this photo" }).click();
   await expect(page).toHaveURL(/\/test\/analysis$/);
-  await page.getByRole("link", { name: "Demographics", exact: true }).click();
+  return (name) => page.getByRole("navigation", { name: "Analysis categories" }).getByRole("link", { name, exact: true });
+}
+
+async function openResults(page) {
+  const tile = await openAnalysis(page);
+  await tile("Demographics").click();
   await expect(page).toHaveURL(/\/test\/results$/);
+}
+
+async function goBack(page) {
+  await expect(page).not.toHaveURL(/\/test\/analysis$/);
+  await page.getByRole("link", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL(/\/test\/analysis$/);
 }
 
 async function trackCamera(page, delay = 0) {
@@ -125,33 +141,115 @@ test("landing diamonds fade in opposition and browser Back restores the centered
   await expect(page.locator("#about")).toBeInViewport();
 });
 
-test("analysis shows four diamond tiles with only Demographics available", async ({ page }) => {
-  await enterProfile(page);
-  await uploadPhoto(page);
-  await page.getByRole("button", { name: "Use this photo" }).click();
-  await expect(page).toHaveURL(/\/test\/analysis$/);
+test("analysis shows four interactive diamond tiles that open working modules", async ({ page }) => {
+  const tile = await openAnalysis(page);
   const categories = page.getByRole("navigation", { name: "Analysis categories" });
-  const demographicTile = categories.getByRole("link", { name: "Demographics", exact: true });
-  await expect(categories.getByRole("link")).toHaveCount(1);
-  await expect(demographicTile).toBeVisible();
-  for (const name of ["Cosmetic Concerns", "Skin Type Details", "Weather"]) {
-    const tile = categories.getByRole("button", { name: `${name} (unavailable)`, exact: true });
-    await expect(tile).toBeVisible();
-    await expect(tile).toBeDisabled();
-  }
-  const top = await demographicTile.boundingBox();
-  const right = await categories.getByRole("button", { name: "Cosmetic Concerns (unavailable)", exact: true }).boundingBox();
-  const left = await categories.getByRole("button", { name: "Skin Type Details (unavailable)", exact: true }).boundingBox();
-  const bottom = await categories.getByRole("button", { name: "Weather (unavailable)", exact: true }).boundingBox();
+  await expect(page.getByText("A.I. has estimated the following.")).toBeVisible();
+  await expect(categories.getByRole("link")).toHaveCount(4);
+  await expect(categories.getByRole("button")).toHaveCount(0);
+  const center = async (name) => {
+    const box = await tile(name).boundingBox();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const top = await center("Demographics");
+  const left = await center("Cosmetic Concerns");
+  const right = await center("Skin Type Details");
+  const bottom = await center("Weather");
   expect(top.y).toBeLessThan(left.y);
-  expect(top.y).toBeLessThan(right.y);
-  expect(bottom.y).toBeGreaterThan(left.y);
   expect(bottom.y).toBeGreaterThan(right.y);
   expect(left.x).toBeLessThan(top.x);
   expect(right.x).toBeGreaterThan(top.x);
-  await demographicTile.click();
-  await expect(page).toHaveURL(/\/test\/results$/);
-  await expect(page.getByRole("heading", { name: "Demographics", exact: true })).toBeVisible();
+  expect(Math.abs(top.x - bottom.x)).toBeLessThan(2);
+  expect(Math.abs(left.y - right.y)).toBeLessThan(2);
+  for (const [name, path] of [["Demographics", "results"], ["Cosmetic Concerns", "concerns"], ["Skin Type Details", "skin-type"], ["Weather", "weather"]]) {
+    await tile(name).click();
+    await expect(page).toHaveURL(new RegExp(`/test/${path}$`));
+    await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+    await goBack(page);
+    await expect(tile(name)).toHaveAttribute("aria-current", "true");
+    await expect(categories.locator("[aria-current]")).toHaveCount(1);
+  }
+  await tile("Cosmetic Concerns").focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/test\/concerns$/);
+  await goBack(page);
+  await page.getByRole("link", { name: "Home", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { name: "Sophisticated skincare" })).toBeVisible();
+});
+
+test("concerns, skin type, and weather show simulated estimates and keep selections like demographics", async ({ page }) => {
+  let requests = 0;
+  await page.route("**/skinstricPhaseTwo", (route) => { requests += 1; return route.fulfill({ headers: cors, json: { success: true, data: demographics } }); });
+  const tile = await openAnalysis(page);
+  const chosen = {};
+  for (const [title, { path, categories }] of Object.entries(estimateModules)) {
+    await tile(title).click();
+    await expect(page).toHaveURL(new RegExp(`/test/${path}$`));
+    await expect(page.getByRole("heading", { level: 1, name: title, exact: true })).toBeVisible();
+    const cards = page.getByRole("navigation", { name: `${title} categories` });
+    await expect(cards.getByRole("button")).toHaveCount(3);
+    for (const [category, count] of Object.entries(categories)) {
+      const card = cards.getByRole("button").filter({ has: page.getByText(category, { exact: true }) });
+      await card.click();
+      const rows = page.getByRole("radiogroup", { name: `Select your ${category}` }).locator("label");
+      await expect(rows).toHaveCount(count);
+      const scores = (await rows.locator("span:last-child").allTextContents()).map((percentage) => {
+        expect(percentage).toMatch(/^\d+\.\d{2}%$/);
+        return Number(percentage.slice(0, -1));
+      });
+      expect(scores).toEqual([...scores].sort((a, b) => b - a));
+      const last = rows.last().getByRole("radio");
+      const label = await last.getAttribute("value");
+      await last.check();
+      await expect(card).toContainText(label);
+      chosen[title] = { category, label };
+    }
+    await expect(page.getByRole("paragraph").filter({ hasText: "These results are randomized simulations, not verified medical or biometric measurements." })).toBeVisible();
+    await goBack(page);
+  }
+  await tile("Demographics").click();
+  await expect(page.getByRole("radio", { name: "south asian 55.00%" })).toBeChecked();
+  await goBack(page);
+  for (const [title, { category, label }] of Object.entries(chosen)) {
+    await tile(title).click();
+    await page.getByRole("navigation", { name: `${title} categories` }).getByRole("button").filter({ has: page.getByText(category, { exact: true }) }).click();
+    const group = page.getByRole("radiogroup", { name: `Select your ${category}` });
+    await expect(group.locator(`input[value="${label}"]`)).toBeChecked();
+    await page.getByRole("button", { name: "Reset selections" }).click();
+    await expect(group.getByRole("radio").first()).toBeChecked();
+    await goBack(page);
+  }
+  expect(requests).toBe(1);
+});
+
+test("photo options use three spinning outlined squares with labels beside centered icons", async ({ page }) => {
+  await enterProfile(page);
+  const options = [page.getByRole("link", { name: "Allow A.I. to scan your face" }), page.getByRole("button", { name: "Allow A.I. access gallery" })];
+  for (const [index, option] of options.entries()) {
+    const layers = option.locator(".diamond-layers > span");
+    await expect(layers).toHaveCount(3);
+    const angles = await layers.evaluateAll((spans) => spans.map((span) => getComputedStyle(span).rotate));
+    expect(new Set(angles).size).toBe(3);
+    const box = await option.boundingBox();
+    const icon = await option.locator(".scan-icon").boundingBox();
+    const label = await option.locator(".scan-label").boundingBox();
+    expect(Math.abs(icon.x + icon.width / 2 - (box.x + box.width / 2))).toBeLessThan(1);
+    expect(Math.abs(icon.y + icon.height / 2 - (box.y + box.height / 2))).toBeLessThan(1);
+    if (index === 0) expect(label.x).toBeGreaterThan(icon.x + icon.width);
+    else {
+      expect(label.x + label.width).toBeLessThan(icon.x);
+      expect(label.y).toBeGreaterThan(icon.y + icon.height / 2);
+    }
+  }
+  const layer = page.locator(".diamond-layers > span").first();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(layer).toHaveCSS("animation-name", "layer-spin");
+  const transform = () => layer.evaluate((element) => getComputedStyle(element).transform);
+  const before = await transform();
+  await expect.poll(transform).not.toBe(before);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(layer).toHaveCSS("animation-name", "none");
 });
 
 test("Phase One posts trimmed Unicode values and sends one request", async ({ page }) => {
@@ -194,7 +292,7 @@ test("upload converts to raw JPEG Base64 and clears the photo after analysis", a
   expect(requests[0].image).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
   expect([...Buffer.from(requests[0].image, "base64").subarray(0, 2)]).toEqual([255, 216]);
   await page.getByRole("link", { name: "Back", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Let’s get to know you" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Allow A.I. to scan your face" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Your photo, ready for analysis" })).toHaveCount(0);
   const saved = await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }));
   expect(saved).toEqual({ local: 0, session: 0 });
@@ -222,11 +320,11 @@ test("photo review Back discards the upload and returns to photo options", async
   await enterProfile(page);
   await uploadPhoto(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Let’s get to know you" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Allow A.I. to scan your face" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Your photo, ready for analysis" })).toHaveCount(0);
   await uploadPhoto(page);
   await page.getByRole("button", { name: "Choose another photo" }).click();
-  await expect(page.getByRole("heading", { name: "Let’s get to know you" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Allow A.I. to scan your face" })).toBeVisible();
 });
 
 test("image service errors never produce results and the same photo can be retried", async ({ page }) => {
@@ -252,7 +350,7 @@ test("image service errors never produce results and the same photo can be retri
 
 test("scores are descending and selections synchronize the sidebar and confidence", async ({ page }) => {
   await openResults(page);
-  const categories = page.getByRole("navigation", { name: "Demographic categories" });
+  const categories = page.getByRole("navigation", { name: "Demographics categories" });
   const race = page.getByRole("radiogroup", { name: "Select your race" });
   await expect(race.locator("label")).toHaveText(["south asian55.00%", "black20.00%", "east asian10.00%", "white5.00%", "southeast asian4.00%", "latino hispanic3.00%", "middle eastern3.00%"]);
   await page.getByRole("radio", { name: "black 20.00%" }).check();
@@ -279,13 +377,13 @@ test("attribute selections survive navigation without another API request", asyn
   await openResults(page);
   await page.getByRole("radio", { name: "black 20.00%" }).check();
   await page.getByRole("link", { name: "Back", exact: true }).click();
-  await page.getByRole("link", { name: "Get summary" }).click();
+  await page.getByRole("navigation", { name: "Analysis categories" }).getByRole("link", { name: "Demographics", exact: true }).click();
   await expect(page.getByRole("radio", { name: "black 20.00%" })).toBeChecked();
   expect(requests).toBe(1);
 });
 
 test("direct routes and refresh recover without fabricated results", async ({ page }) => {
-  for (const path of ["/test/image", "/test/camera", "/test/analysis", "/test/results"]) {
+  for (const path of ["/test/image", "/test/camera", "/test/analysis", "/test/results", "/test/concerns", "/test/skin-type", "/test/weather"]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { name: "Let’s start with you" })).toBeVisible();
   }
@@ -356,7 +454,7 @@ test("selfie capture stops tracks, supports retake, and submits through Phase Tw
   await page.getByRole("button", { name: "Use this photo" }).click();
   expect((await request).postDataJSON().image).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
   await expect(page).toHaveURL(/\/test\/analysis$/);
-  await page.getByRole("link", { name: "Get summary" }).click();
+  await page.getByRole("navigation", { name: "Analysis categories" }).getByRole("link", { name: "Demographics", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Demographics", exact: true })).toBeVisible();
 });
 
@@ -376,7 +474,7 @@ test("camera tracks stop on navigation and late permission results are discarded
   await expect.poll(() => page.evaluate(() => window.testStreams.every((stream) => stream.getTracks().every((track) => track.readyState === "ended")))).toBe(true);
 });
 
-test("landing, form, photo options, and result categories fit the viewport", async ({ page }) => {
+test("landing, form, photo options, analysis modules, and result categories fit the viewport", async ({ page }) => {
   async function expectNoOverflow() {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
@@ -393,9 +491,16 @@ test("landing, form, photo options, and result categories fit the viewport", asy
     await page.getByRole("button", { name: "Use this photo" }).click();
     await expect(page.getByRole("navigation", { name: "Analysis categories" })).toBeVisible();
     await expectNoOverflow();
-    await page.getByRole("link", { name: "Get summary" }).click();
+    for (const name of Object.keys(estimateModules)) {
+      await page.getByRole("navigation", { name: "Analysis categories" }).getByRole("link", { name, exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+      await expectNoOverflow();
+      await page.getByRole("link", { name: "Back", exact: true }).click();
+      await expect(page.getByRole("navigation", { name: "Analysis categories" })).toBeVisible();
+    }
+    await page.getByRole("navigation", { name: "Analysis categories" }).getByRole("link", { name: "Demographics", exact: true }).click();
     await expectNoOverflow();
-    await page.getByRole("navigation", { name: "Demographic categories" }).getByRole("button", { name: "30-39 Age" }).click();
+    await page.getByRole("navigation", { name: "Demographics categories" }).getByRole("button", { name: "30-39 Age" }).click();
     await expectNoOverflow();
     await page.getByRole("button", { name: "Reset selections" }).scrollIntoViewIfNeeded();
     await expect(page.getByRole("button", { name: "Reset selections" })).toBeVisible();

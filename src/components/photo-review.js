@@ -5,10 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAnalysis } from "@/components/analysis-session";
 import { BackLink, DiamondArrow } from "@/components/chrome";
-import { analyzeImage } from "@/lib/skinstric";
+import { analyzeImage, simulateEstimates } from "@/lib/skinstric";
 
 export default function PhotoReview({ image, onDiscard, discardLabel, backHref }) {
-  const { saveDemographics } = useAnalysis();
+  const { saveResults } = useAnalysis();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const request = useRef(null);
@@ -25,7 +25,7 @@ export default function PhotoReview({ image, onDiscard, discardLabel, backHref }
     try {
       const demographics = await analyzeImage(image, controller.signal);
       if (controller.signal.aborted) return;
-      saveDemographics(demographics);
+      saveResults({ demographics, ...simulateEstimates() });
       onDiscard();
       router.push("/test/analysis");
     } catch (failure) {

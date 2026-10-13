@@ -9,22 +9,60 @@ export function validateField(value, field) {
   return "";
 }
 
-export function normalizeDemographics(data) {
-  if (!data || typeof data !== "object") throw new Error("The service returned incomplete demographic results. Please try again.");
-  const demographics = {};
-  for (const category of ["race", "age", "gender"]) {
+export const estimateCategories = Object.freeze({
+  concerns: {
+    concern: ["acne", "dryness", "redness", "hyperpigmentation", "fine lines", "enlarged pores", "uneven texture"],
+    severity: ["mild", "moderate", "severe"],
+    area: ["forehead", "cheeks", "nose", "chin", "under eyes"],
+  },
+  skinType: {
+    "skin type": ["normal", "dry", "oily", "combination", "sensitive"],
+    hydration: ["low", "balanced", "high"],
+    sensitivity: ["low", "moderate", "high"],
+  },
+  weather: {
+    conditions: ["sunny", "partly cloudy", "overcast", "rainy", "snowy"],
+    temperature: ["cold", "cool", "mild", "warm", "hot"],
+    humidity: ["dry", "moderate", "humid"],
+  },
+});
+
+export function normalizeScores(data, categories) {
+  if (!data || typeof data !== "object") throw new Error("The service returned incomplete results. Please try again.");
+  const results = {};
+  for (const category of categories) {
     const scores = data[category];
     if (!scores || typeof scores !== "object" || Array.isArray(scores) || !Object.keys(scores).length) {
-      throw new Error("The service returned incomplete demographic results. Please try again.");
+      throw new Error("The service returned incomplete results. Please try again.");
     }
-    demographics[category] = Object.freeze(Object.entries(scores).map(([label, confidence]) => {
+    results[category] = Object.freeze(Object.entries(scores).map(([label, confidence]) => {
       if (!label.trim() || typeof confidence !== "number" || !Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
         throw new Error("The service returned invalid confidence scores. Please try again.");
       }
       return Object.freeze({ label, confidence });
     }).sort((a, b) => b.confidence - a.confidence));
   }
-  return Object.freeze(demographics);
+  return Object.freeze(results);
+}
+
+export function normalizeDemographics(data) {
+  return normalizeScores(data, ["race", "age", "gender"]);
+}
+
+// Phase Two only returns race, age, and gender, so the other analysis modules use
+// randomized scores in the same shape, generated when Phase Two succeeds.
+export function simulateEstimates(random = Math.random) {
+  const estimates = {};
+  for (const [module, categories] of Object.entries(estimateCategories)) {
+    const data = {};
+    for (const [category, labels] of Object.entries(categories)) {
+      const weights = labels.map(() => random() ** 3);
+      const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+      data[category] = Object.fromEntries(labels.map((label, index) => [label, weights[index] / total]));
+    }
+    estimates[module] = normalizeScores(data, Object.keys(categories));
+  }
+  return Object.freeze(estimates);
 }
 
 export function formatConfidence(confidence) {

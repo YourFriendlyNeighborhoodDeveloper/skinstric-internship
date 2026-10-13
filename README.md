@@ -4,6 +4,8 @@ A Next.js application implementing the three phases in the [Skinstric technical 
 
 Results are sorted by confidence and displayed as percentages with two decimal places. Selecting an actual attribute updates the corresponding category card and confidence display without changing the API scores. Selections can be reset.
 
+After analysis, four diamond tiles open Demographics, Cosmetic Concerns, Skin Type Details, and Weather. Every module uses the same results screen: estimated categories sorted by confidence, an editable "actual" selection for each category, and a reset. Selections stay in the in-memory session while moving between modules.
+
 ## Submission links
 
 - Live application: [https://skinstric-internship-two.vercel.app](https://skinstric-internship-two.vercel.app)
@@ -39,7 +41,7 @@ Uploads accept JPEG, PNG, and WebP up to 10 MB. Photos are decoded and converted
 
 The browser keeps profile details, scores, and selections only in memory. Refreshing starts a new session. Photos are cleared after successful analysis or leaving their screen; they are not stored in localStorage, sessionStorage, or a database. Camera tracks stop after capture, when navigating away, and when the page is hidden. Late camera permission results are released. Camera access requires HTTPS or localhost.
 
-The API returns randomized demo predictions. These are not verified medical or biometric measurements. Photos are sent to the external service only when the user chooses “Use this photo”; this project does not control the service's retention policy.
+The API returns randomized demo predictions. These are not verified medical or biometric measurements. Phase Two only returns race, age, and gender, so the Cosmetic Concerns (concern, severity, area), Skin Type Details (skin type, hydration, sensitivity), and Weather (conditions, temperature, humidity) estimates are randomized in the same format when Phase Two succeeds. No estimates are created when it fails. Photos are sent to the external service only when the user chooses “Use this photo”; this project does not control the service's retention policy.
 
 ## Tests
 
@@ -51,7 +53,7 @@ npm run build
 npm run test:e2e
 ```
 
-Browser tests run against the production build on port 3100. They cover navigation, field validation, request payloads, retry and error states, image decoding and resizing, selfie capture and cleanup, score sorting and formatting, attribute selection, session recovery, and layouts at 320, 768, and 1440 pixels. API mocks exist only in the tests.
+Browser tests run against the production build on port 3100. They cover navigation, field validation, request payloads, retry and error states, image decoding and resizing, selfie capture and cleanup, spinning photo-option diamonds and reduced motion, the four analysis tiles and their modules, module selection persistence, score sorting and formatting, attribute selection, session recovery, and layouts at 320, 768, and 1440 pixels. API mocks exist only in the tests.
 
 Chromium's native fake camera verifies capture and stream cleanup on desktop and mobile emulation. WebKit covers upload, navigation, errors, results, and responsive layouts; its two native fake-camera cases are explicitly skipped.
 
@@ -69,7 +71,7 @@ The production application is deployed to Vercel, with the GitHub repository con
 
 Import the repository into Vercel, choose Next.js, use `npm ci` for installation and `npm run build` for the build, and deploy over HTTPS. No secrets are needed. For a Node.js host, run `npm run build` followed by `npm start`.
 
-Final submission validation passed: lint, the local and Vercel production builds, five contract tests, and 46 browser tests against both the local production build and the public deployment. Two WebKit native fake-camera tests were explicitly skipped. Both real-API tests passed locally and on the public deployment, covering upload and simulated selfie flows; `skinstricPhaseOne` and `skinstricPhaseTwo` returned HTTP 200 in each deployed flow. Physical-camera and Figma checks remain unverified as listed below.
+Validation of the current revision against the local production build passed: lint, the production build, six contract tests, and 58 browser tests across Chromium, mobile Chromium, and WebKit. Two WebKit native fake-camera tests were explicitly skipped. The public deployment and the real Skinstric API tests (`npm run test:live`) still need to be re-run for this revision; they last passed for the previous submission. Physical-camera and Figma checks remain unverified as listed below.
 
 The production dependency audit reports no vulnerabilities. The development lint dependency chain contains an unresolved `braces` advisory ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)); the registry currently has no patched release. Do not use an automatic forced downgrade of Next.js to address it.
 

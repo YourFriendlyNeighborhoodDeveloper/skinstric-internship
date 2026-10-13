@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatConfidence, normalizeDemographics, validateField } from "../src/lib/skinstric.js";
+import { estimateCategories, formatConfidence, normalizeDemographics, simulateEstimates, validateField } from "../src/lib/skinstric.js";
 
 test("validation accepts international names, mononyms, and punctuation", () => {
   for (const name of ["李", "Élodie D’Arcy", "Jean-Luc", "O'Neill", "Jose\u0301", "Prince"]) {
@@ -41,4 +41,22 @@ test("confidence percentages always have exactly two decimal places", () => {
   assert.equal(formatConfidence(1), "100.00%");
   assert.equal(formatConfidence(0.6315332283), "63.15%");
   assert.equal(formatConfidence(0.0000043818), "0.00%");
+});
+
+test("simulated module estimates use the demographic result shape", () => {
+  const estimates = simulateEstimates();
+  assert.deepEqual(Object.keys(estimates), ["concerns", "skinType", "weather"]);
+  for (const [module, categories] of Object.entries(estimateCategories)) {
+    assert.deepEqual(Object.keys(estimates[module]), Object.keys(categories));
+    for (const [category, labels] of Object.entries(categories)) {
+      const scores = estimates[module][category];
+      assert.deepEqual(scores.map((score) => score.label).sort(), [...labels].sort());
+      assert.deepEqual(scores, [...scores].sort((a, b) => b.confidence - a.confidence));
+      assert.ok(Math.abs(scores.reduce((sum, score) => sum + score.confidence, 0) - 1) < 1e-9);
+      assert.throws(() => { scores[0].confidence = 0; }, TypeError);
+    }
+  }
+  const fixed = simulateEstimates(() => 0.5);
+  assert.equal(fixed.weather.humidity[0].confidence, 1 / 3);
+  assert.equal(simulateEstimates(() => 0).concerns.severity[0].confidence, 0);
 });

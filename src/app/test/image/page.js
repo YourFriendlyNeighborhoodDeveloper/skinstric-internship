@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, ImageUp } from "lucide-react";
+import { Camera, ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SessionRecovery, useAnalysis } from "@/components/analysis-session";
-import { BackLink, Orbit } from "@/components/chrome";
+import { BackLink, DiamondLayers } from "@/components/chrome";
 import PhotoReview from "@/components/photo-review";
 import { prepareImage } from "@/lib/image";
 
@@ -44,20 +44,24 @@ export default function ImagePage() {
 
   return (
     <>
-      <h1 className="pt-3 text-xs font-semibold uppercase">Let’s get to know you</h1>
-      <div className="flex flex-1 flex-col items-center justify-center py-16">
-        <div className="grid w-full max-w-4xl grid-cols-1 justify-items-center gap-20 md:grid-cols-2 md:gap-28">
-          <div className="relative flex size-52 items-center justify-center md:size-64">
-            <Orbit />
-            <Link href="/test/camera" className="relative flex h-full w-full flex-col items-center justify-center gap-6 text-center transition-colors hover:bg-neutral-100/60"><Camera aria-hidden="true" size={64} strokeWidth={1} /><span className="text-xs leading-relaxed uppercase">Allow A.I.<br />to scan your face</span></Link>
-          </div>
-          <div className="relative flex size-52 items-center justify-center md:size-64">
-            <Orbit />
-            <button disabled={preparing} onClick={() => input.current.click()} className="relative flex h-full w-full flex-col items-center justify-center gap-6 text-center transition-colors hover:bg-neutral-100/60"><ImageUp aria-hidden="true" size={64} strokeWidth={1} /><span className="text-xs leading-relaxed uppercase">{preparing ? "Preparing your photo" : <>Allow A.I.<br />to access your gallery</>}</span></button>
+      <h1 className="pt-3 text-xs font-semibold uppercase">To start analysis</h1>
+      <div className="flex flex-1 flex-col items-center justify-center py-8 md:py-12">
+        <div className="grid w-full max-w-5xl grid-cols-1 justify-items-center gap-4 md:grid-cols-2">
+          <Link href="/test/camera" className="scan-option group">
+            <DiamondLayers />
+            <span className="scan-icon"><Camera aria-hidden="true" strokeWidth={1.75} /></span>
+            <span className="scan-label">Allow A.I.<br /> to scan your face</span>
+          </Link>
+          <div className="relative">
+            <button disabled={preparing} onClick={() => input.current.click()} className="scan-option scan-option-gallery group">
+              <DiamondLayers />
+              <span className="scan-icon"><ImageIcon aria-hidden="true" strokeWidth={1.75} /></span>
+              <span className="scan-label">{preparing ? "Preparing your photo" : <>Allow A.I.<br /> access gallery</>}</span>
+            </button>
             <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload photo" className="sr-only" tabIndex={-1} disabled={preparing} onChange={choosePhoto} />
           </div>
         </div>
-        <p className="mt-20 text-center text-xs text-neutral-500">Choose a photo or take a selfie. JPEG, PNG, or WebP, up to 10 MB.</p>
+        <p className="mt-6 text-center text-xs text-neutral-500">Choose a photo or take a selfie. JPEG, PNG, or WebP, up to 10 MB.</p>
         {preparing && <p role="status" className="mt-4 text-xs">Preparing your photo</p>}
         {error && <p role="alert" className="mt-4 max-w-sm text-center text-sm text-red-700">{error}</p>}
       </div>

@@ -2,35 +2,47 @@
 
 import Link from "next/link";
 import { SessionRecovery, useAnalysis } from "@/components/analysis-session";
-import { BackLink, DiamondArrow, Orbit } from "@/components/chrome";
+import { BackLink, DiamondArrow } from "@/components/chrome";
+
+// Grid cells are rotated 45°: row 1/col 1 is the top tile, row 2/col 1 left, row 1/col 2 right, row 2/col 2 bottom.
+const modules = [
+  { id: "demographics", lines: ["Demographics"], href: "/test/results", place: "col-start-1 row-start-1" },
+  { id: "concerns", lines: ["Cosmetic", "Concerns"], href: "/test/concerns", place: "col-start-1 row-start-2" },
+  { id: "skinType", lines: ["Skin Type", "Details"], href: "/test/skin-type", place: "col-start-2 row-start-1" },
+  { id: "weather", lines: ["Weather"], href: "/test/weather", place: "col-start-2 row-start-2" },
+];
 
 export default function AnalysisPage() {
-  const { profile, demographics } = useAnalysis();
-  if (!profile || !demographics) return <SessionRecovery needsImage={Boolean(profile)} />;
+  const { profile, results, lastModule, openModule } = useAnalysis();
+  if (!profile || !results) return <SessionRecovery needsImage={Boolean(profile)} />;
 
   return (
     <>
-      <h1 className="pt-3 text-xs font-semibold uppercase">A.I. analysis</h1>
-      <p className="mt-3 max-w-sm text-xs leading-relaxed uppercase">Your analysis is complete.<br />Explore your demographic results and select your actual attributes.</p>
-      <div className="flex flex-1 items-center justify-center py-24">
-        <div className="relative flex size-64 items-center justify-center md:size-96">
-          <Orbit />
-          <nav aria-label="Analysis categories" className="analysis-categories relative grid size-44 rotate-45 grid-cols-2 grid-rows-2 gap-2 md:size-64">
-            <Link href="/test/results" className="flex items-center justify-center bg-neutral-200 transition-colors hover:bg-neutral-300"><span className="-rotate-45 text-[10px] font-semibold uppercase md:text-sm">Demographics</span></Link>
-            <button type="button" disabled aria-label="Cosmetic Concerns (unavailable)" className="flex items-center justify-center bg-neutral-100 text-neutral-600">
-              <span className="-rotate-45 text-center text-[10px] font-semibold uppercase md:text-xs">Cosmetic<br />Concerns<span className="mt-1 block text-[8px] font-normal normal-case">Unavailable</span></span>
-            </button>
-            <button type="button" disabled aria-label="Skin Type Details (unavailable)" className="flex items-center justify-center bg-neutral-100 text-neutral-600">
-              <span className="-rotate-45 text-center text-[10px] font-semibold uppercase md:text-xs">Skin Type<br />Details<span className="mt-1 block text-[8px] font-normal normal-case">Unavailable</span></span>
-            </button>
-            <button type="button" disabled aria-label="Weather (unavailable)" className="flex items-center justify-center bg-neutral-100 text-neutral-600">
-              <span className="-rotate-45 text-center text-[10px] font-semibold uppercase md:text-xs">Weather<span className="mt-1 block text-[8px] font-normal normal-case">Unavailable</span></span>
-            </button>
-          </nav>
-        </div>
+      <h1 className="pt-3 text-base font-semibold uppercase">A.I. analysis</h1>
+      <p className="mt-1 text-xs leading-relaxed text-neutral-500">A.I. has estimated the following.<br />Fix estimated information if needed.</p>
+      <div className="flex flex-1 items-center justify-center py-16 sm:py-20 md:py-36">
+        <nav aria-label="Analysis categories" className="analysis-categories relative grid size-40 rotate-45 grid-cols-2 grid-rows-2 gap-1.5 md:size-48">
+          <span aria-hidden="true" className="analysis-outline" />
+          {modules.map(({ id, lines, href, place }) => {
+            const selected = lastModule === id;
+            return (
+              <Link
+                key={id}
+                href={href}
+                onClick={() => openModule(id)}
+                aria-label={lines.join(" ")}
+                aria-current={selected ? "true" : undefined}
+                className={`flex items-center justify-center transition-colors ${place} ${selected ? "bg-gray-300 shadow-[inset_0_0_0_1px_#1a1b1c]" : "bg-neutral-200/80 hover:bg-gray-300"}`}
+              >
+                <span className="-rotate-45 text-center text-[10px] leading-snug font-semibold sm:text-xs md:text-[13px]">
+                  {lines.map((line) => <span key={line} className="block">{line}</span>)}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-      <p className="mb-8 text-center text-xs text-neutral-500">Randomized demo predictions. Select what reflects you.</p>
-      <div className="flex items-center justify-between gap-6"><BackLink href="/test/image" /><Link href="/test/results" className="group flex min-h-11 items-center gap-5 text-xs uppercase">Get summary<DiamondArrow /></Link></div>
+      <div className="flex items-center justify-between gap-6"><BackLink href="/test/image" /><Link href="/" className="group flex min-h-11 items-center gap-5 text-xs uppercase">Home<DiamondArrow /></Link></div>
     </>
   );
 }

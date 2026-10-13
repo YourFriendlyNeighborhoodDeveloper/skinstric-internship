@@ -1,38 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 
 const AnalysisContext = createContext(null);
 
+const emptySession = {
+  profile: null,
+  results: null,
+  selections: {},
+  lastModule: null,
+};
+
 export function AnalysisProvider({ children }) {
-  const [session, setSession] = useState({
-    profile: null,
-    demographics: null,
-    selections: {},
-  });
+  const [session, setSession] = useState(emptySession);
+
+  const actions = useMemo(() => ({
+    saveProfile(profile) {
+      setSession({ ...emptySession, profile });
+    },
+    saveResults(results) {
+      setSession((previous) => ({ ...previous, results, selections: {}, lastModule: null }));
+    },
+    selectAttribute(module, category, label) {
+      setSession((previous) => ({
+        ...previous,
+        selections: { ...previous.selections, [module]: { ...previous.selections[module], [category]: label } },
+      }));
+    },
+    resetSelections(module) {
+      setSession((previous) => ({ ...previous, selections: { ...previous.selections, [module]: {} } }));
+    },
+    openModule(id) {
+      setSession((previous) => ({ ...previous, lastModule: id }));
+    },
+  }), []);
 
   return (
-    <AnalysisContext.Provider
-      value={{
-        ...session,
-        saveProfile(profile) {
-          setSession({ profile, demographics: null, selections: {} });
-        },
-        saveDemographics(demographics) {
-          setSession((previous) => ({ ...previous, demographics, selections: {} }));
-        },
-        selectAttribute(category, label) {
-          setSession((previous) => ({
-            ...previous,
-            selections: { ...previous.selections, [category]: label },
-          }));
-        },
-        resetSelections() {
-          setSession((previous) => ({ ...previous, selections: {} }));
-        },
-      }}
-    >
+    <AnalysisContext.Provider value={{ ...session, ...actions }}>
       {children}
     </AnalysisContext.Provider>
   );
